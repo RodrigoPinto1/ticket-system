@@ -9,14 +9,27 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tickets', function (Blueprint $table) {
-            $table->foreignId('entity_id')->nullable()->constrained('entities')->nullOnDelete();
+            if (!Schema::hasColumn('tickets', 'entity_id')) {
+                $table->foreignId('entity_id')->nullable()->constrained('entities')->nullOnDelete();
+            }
         });
     }
 
     public function down(): void
     {
         Schema::table('tickets', function (Blueprint $table) {
-            $table->dropForeignIdFor('entities');
+            if (Schema::hasColumn('tickets', 'entity_id')) {
+                // dropForeignIdFor expects the column name or referenced table depending on Laravel version
+                // Try to drop the foreign key/column safely
+                try {
+                    $table->dropForeignIdFor('entities');
+                } catch (\Throwable $e) {
+                    // fallback: drop column if the helper fails
+                    if (Schema::hasColumn('tickets', 'entity_id')) {
+                        $table->dropColumn('entity_id');
+                    }
+                }
+            }
         });
     }
 };

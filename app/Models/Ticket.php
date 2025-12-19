@@ -20,11 +20,13 @@ class Ticket extends Model
         'type_id',
         'status_id',
         'contact_id',
+        'known_emails',
         'subject',
         'closed_at',
     ];
 
     protected $casts = [
+        'known_emails' => 'array',
         'closed_at' => 'datetime',
     ];
 
