@@ -27,7 +27,7 @@
                     }
                 }
 
-                let appearance = readLocalStorage() || readCookie() || serverAppearance || 'system';
+                let appearance = readLocalStorage() || readCookie() || serverAppearance || 'light';
 
                 if (appearance === 'system') {
                     try {
@@ -72,6 +72,7 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
+        @routes
         @vite(['resources/js/app.ts', "resources/js/pages/{$page['component']}.vue"])
         @inertiaHead
     </head>

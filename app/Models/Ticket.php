@@ -69,4 +69,9 @@ class Ticket extends Model
     {
         return $this->hasMany(TicketMessage::class);
     }
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(TicketActivity::class)->orderBy('created_at', 'desc');
+    }
 }

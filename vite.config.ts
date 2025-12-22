@@ -21,7 +21,15 @@ export default defineConfig({
                     base: null,
                     includeAbsolute: false,
                 },
+                compilerOptions: {
+                    isCustomElement: (tag) => tag === 'route',
+                },
             },
         }),
     ],
+    resolve: {
+        alias: {
+            'ziggy-js': 'ziggy-js/dist/vue.es.js',
+        },
+    },
 });
