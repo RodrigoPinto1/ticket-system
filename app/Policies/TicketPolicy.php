@@ -14,7 +14,17 @@ class TicketPolicy
 
     public function view(User $user, Ticket $ticket): bool
     {
-        return $user->hasInboxRole($ticket->inbox_id);
+        // Operators and owners can view any ticket in the inbox
+        if ($user->hasInboxRole($ticket->inbox_id, ['owner', 'operator'])) {
+            return true;
+        }
+
+        // Clients can only view tickets where they are the requester
+        if ($user->hasInboxRole($ticket->inbox_id, 'client')) {
+            return $user->id === $ticket->requester_id;
+        }
+
+        return false;
     }
 
     public function create(User $user): bool

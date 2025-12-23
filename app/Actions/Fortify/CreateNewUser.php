@@ -3,6 +3,8 @@
 namespace App\Actions\Fortify;
 
 use App\Models\User;
+use App\Models\Inbox;
+use App\Models\InboxUserRole;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Laravel\Fortify\Contracts\CreatesNewUsers;
@@ -30,10 +32,26 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
-        return User::create([
+        $user = User::create([
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => $input['password'],
         ]);
+
+        // Assign default client role in the default inbox
+        $inbox = Inbox::first();
+        if ($inbox) {
+            InboxUserRole::firstOrCreate(
+                [
+                    'inbox_id' => $inbox->id,
+                    'user_id' => $user->id,
+                ],
+                [
+                    'role' => 'client',
+                ]
+            );
+        }
+
+        return $user;
     }
 }

@@ -5,12 +5,19 @@ namespace App\Http\Controllers;
 use App\Models\NotificationTemplate;
 use App\Services\NotificationTemplateRenderer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class NotificationTemplateController extends Controller
 {
     public function index()
     {
+        $user = Auth::user();
+        $isOperator = $user && $user->inboxRoles()->where('role', 'operator')->exists();
+        if (!$isOperator) {
+            abort(403, 'Acesso restrito a operadores');
+        }
+
         $templates = NotificationTemplate::orderBy('slug')->get();
 
         return Inertia::render('NotificationTemplates/Index', [
@@ -20,6 +27,12 @@ class NotificationTemplateController extends Controller
 
     public function edit(NotificationTemplate $template)
     {
+        $user = Auth::user();
+        $isOperator = $user && $user->inboxRoles()->where('role', 'operator')->exists();
+        if (!$isOperator) {
+            abort(403, 'Acesso restrito a operadores');
+        }
+
         return Inertia::render('NotificationTemplates/Edit', [
             'template' => $template,
         ]);
@@ -27,6 +40,12 @@ class NotificationTemplateController extends Controller
 
     public function update(Request $request, NotificationTemplate $template)
     {
+        $user = Auth::user();
+        $isOperator = $user && $user->inboxRoles()->where('role', 'operator')->exists();
+        if (!$isOperator) {
+            abort(403, 'Acesso restrito a operadores');
+        }
+
         $data = $request->validate([
             'subject' => ['required', 'string', 'max:255'],
             'body_html' => ['required', 'string'],
@@ -41,6 +60,12 @@ class NotificationTemplateController extends Controller
 
     public function preview(Request $request, NotificationTemplate $template)
     {
+        $user = Auth::user();
+        $isOperator = $user && $user->inboxRoles()->where('role', 'operator')->exists();
+        if (!$isOperator) {
+            abort(403, 'Acesso restrito a operadores');
+        }
+
         $renderer = app(NotificationTemplateRenderer::class);
 
         // Use form data if provided, otherwise use template from DB

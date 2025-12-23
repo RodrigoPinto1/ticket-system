@@ -23,7 +23,7 @@ class InboxUserRoleSeeder extends Seeder
         // Get all users
         $users = User::all();
 
-        // Assign each user to the inbox
+        // Assign each user to the inbox as client by default
         foreach ($users as $user) {
             InboxUserRole::firstOrCreate(
                 [
@@ -31,7 +31,7 @@ class InboxUserRoleSeeder extends Seeder
                     'user_id' => $user->id,
                 ],
                 [
-                    'role' => 'operator', // Default role
+                    'role' => 'client', // Default role
                 ]
             );
         }

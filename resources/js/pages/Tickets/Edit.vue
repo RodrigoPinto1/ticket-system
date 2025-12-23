@@ -218,16 +218,24 @@ const submit = () => {
             <!-- Status -->
             <div class="space-y-2">
               <Label for="status_id">Estado</Label>
-              <Select v-model="form.status_id">
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem v-for="status in props.statuses" :key="status.id" :value="String(status.id)">
-                    {{ status.name }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              <template v-if="props.isOperator">
+                <Select v-model="form.status_id">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="status in props.statuses" :key="status.id" :value="String(status.id)">
+                      {{ status.name }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </template>
+              <template v-else>
+                <div class="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                  Estado atual: <span class="font-semibold text-foreground">
+                    {{ (props.statuses.find((s) => String(s.id) === form.status_id)?.name) || '—' }}</span>
+                </div>
+              </template>
               <p v-if="form.errors.status_id" class="text-sm text-destructive">{{ form.errors.status_id }}</p>
             </div>
           </div>

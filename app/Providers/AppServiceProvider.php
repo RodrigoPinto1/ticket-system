@@ -7,6 +7,8 @@ use App\Models\Ticket;
 use App\Models\TicketMessage;
 use App\Observers\TicketObserver;
 use App\Observers\TicketMessageObserver;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,5 +28,24 @@ class AppServiceProvider extends ServiceProvider
         // Register model observers
         Ticket::observe(TicketObserver::class);
         TicketMessage::observe(TicketMessageObserver::class);
+
+        // Share auth role flags globally for frontend access control
+        Inertia::share('authFlags', function () {
+            $user = Auth::user();
+            if (!$user) {
+                return [
+                    'isOperator' => false,
+                    'isClient' => false,
+                ];
+            }
+
+            $isOperator = $user->inboxRoles()->where('role', 'operator')->exists();
+            $isClient = $user->inboxRoles()->where('role', 'client')->exists();
+
+            return [
+                'isOperator' => $isOperator,
+                'isClient' => $isClient,
+            ];
+        });
     }
 }

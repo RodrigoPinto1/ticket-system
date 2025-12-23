@@ -10,10 +10,12 @@ use App\Models\Inbox;
 use App\Models\TicketStatus;
 use App\Models\TicketType;
 use App\Models\Entity;
+use App\Models\InboxUserRole;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 /**
@@ -22,7 +24,7 @@ use Inertia\Inertia;
  * This is intentionally straightforward: validate input, create ticket,
  * generate ticket_number via observer, then notify requester, known emails and assignee.
  */
-class TicketController
+class TicketController extends Controller
 {
     /**
      * Display a listing of tickets with filters and search.
@@ -31,6 +33,15 @@ class TicketController
     {
         $query = Ticket::query()
             ->with(['inbox', 'requester', 'assignee', 'entity', 'type', 'status', 'contact']);
+
+        // Restrict clients (non-operator/owner) to only their own tickets
+        $user = Auth::user();
+        if ($user) {
+            $isOperatorOrOwner = $user->inboxRoles()->whereIn('role', ['owner', 'operator'])->exists();
+            if (!$isOperatorOrOwner) {
+                $query->where('requester_id', $user->id);
+            }
+        }
 
         // Filter by Inbox
         if ($request->filled('inbox_id')) {
@@ -84,7 +95,12 @@ class TicketController
         $statuses = TicketStatus::select('id', 'name')->get();
         $types = TicketType::select('id', 'name')->get();
         $entities = Entity::select('id', 'name')->get();
-        $operators = User::select('id', 'name', 'email')->get();
+        // Only list users who are operators in any inbox
+        $operators = User::select('id', 'name', 'email')
+            ->whereHas('inboxRoles', function ($q) {
+                $q->where('role', 'operator');
+            })
+            ->get();
 
         return Inertia::render('Tickets/Index', [
             'tickets' => $tickets,
@@ -115,13 +131,21 @@ class TicketController
         $statuses = TicketStatus::select('id', 'name')->get();
         $types = TicketType::select('id', 'name')->get();
         $entities = Entity::select('id', 'name')->get();
-        $operators = User::select('id', 'name', 'email')->get();
+        // Only list users who have operator role (any inbox)
+        $operators = User::select('id', 'name', 'email')
+            ->whereHas('inboxRoles', function ($q) {
+                $q->where('role', 'operator');
+            })
+            ->get();
 
         // Check if current user is an operator or owner in any inbox
         $user = Auth::user();
         $isOperator = $user->inboxRoles()
             ->whereIn('role', ['operator', 'owner'])
             ->exists();
+
+            // Determine default status id for 'pending'
+            $defaultStatusId = TicketStatus::where('slug', 'pending')->value('id');
 
         return Inertia::render('Tickets/Create', [
             'inboxes' => $inboxes,
@@ -130,6 +154,7 @@ class TicketController
             'entities' => $entities,
             'operators' => $operators,
             'isOperator' => $isOperator,
+                'defaultStatusId' => $defaultStatusId,
         ]);
     }
 
@@ -138,7 +163,15 @@ class TicketController
      */
     public function show(Ticket $ticket)
     {
-        $ticket->load([
+        // Enforce policy: clients must be requester to view
+        $this->authorize('view', $ticket);
+
+        $user = Auth::user();
+        $isClient = $user ? $user->hasInboxRole($ticket->inbox_id, 'client') : false;
+        $isOperator = $user ? $user->hasInboxRole($ticket->inbox_id, 'operator') : false;
+
+        // Load relationships; omit activities for clients
+        $relations = [
             'inbox',
             'requester',
             'assignee',
@@ -149,11 +182,16 @@ class TicketController
             'messages.user',
             'messages.contact',
             'messages.attachments',
-            'activities.user',
-        ]);
+        ];
+        if (!$isClient) {
+            $relations[] = 'activities.user';
+        }
+        $ticket->load($relations);
 
         return Inertia::render('Tickets/Show', [
             'ticket' => $ticket,
+            'isClient' => $isClient,
+            'isOperator' => $isOperator,
         ]);
     }
 
@@ -168,10 +206,17 @@ class TicketController
         $statuses = TicketStatus::select('id', 'name')->orderBy('order')->get();
         $types = TicketType::select('id', 'name')->get();
         $entities = Entity::select('id', 'name')->get();
-        $operators = User::select('id', 'name', 'email')->get();
+        // Only operators for the ticket's inbox
+        $operators = User::select('id', 'name', 'email')
+            ->whereHas('inboxRoles', function ($q) use ($ticket) {
+                $q->where('role', 'operator')
+                  ->where('inbox_id', $ticket->inbox_id);
+            })
+            ->get();
 
         $user = Auth::user();
-        $isOperator = $user->inboxRoles()->whereIn('role', ['operator', 'owner'])->exists();
+        // Only "operator" role should be considered operator for UI permissions
+        $isOperator = $user->inboxRoles()->where('role', 'operator')->exists();
 
         return Inertia::render('Tickets/Edit', [
             'ticket' => $ticket,
@@ -194,7 +239,14 @@ class TicketController
             'inbox_id' => ['required', 'integer', 'exists:inboxes,id'],
             'subject' => ['required', 'string', 'max:255'],
             'content' => ['nullable', 'string'],
-            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            // Only allow assigning to users who are operators in the selected inbox
+            'assigned_to' => [
+                'nullable',
+                'integer',
+                'exists:users,id',
+                Rule::exists('inbox_user_roles', 'user_id')
+                    ->where(fn ($q) => $q->where('inbox_id', $request->inbox_id)->where('role', 'operator')),
+            ],
             'entity_id' => ['nullable', 'integer', 'exists:entities,id'],
             'type_id' => ['nullable', 'integer', 'exists:ticket_types,id'],
             'status_id' => ['nullable', 'integer', 'exists:ticket_statuses,id'],
@@ -222,6 +274,15 @@ class TicketController
             'type_id' => $data['type_id'] ?? null,
             'entity_id' => $data['entity_id'] ?? null,
         ]);
+
+        // Ensure requester has 'client' role in this inbox to satisfy view/reply policies
+        if (!InboxUserRole::where('inbox_id', $ticket->inbox_id)->where('user_id', $requesterId)->exists()) {
+            InboxUserRole::create([
+                'inbox_id' => $ticket->inbox_id,
+                'user_id' => $requesterId,
+                'role' => 'client',
+            ]);
+        }
 
         // Notify recipients by enqueuing Mailables with small delays to avoid provider rate limits.
         // Base delay is configured via MAIL_SEND_DELAY_MS (milliseconds) in .env.
@@ -262,11 +323,21 @@ class TicketController
      */
     public function update(Request $request, Ticket $ticket)
     {
+        // General update authorization (owner/operator)
+        $this->authorize('update', $ticket);
+
         $data = $request->validate([
             'inbox_id' => ['required', 'integer', 'exists:inboxes,id'],
             'subject' => ['required', 'string', 'max:255'],
             'content' => ['nullable', 'string'],
-            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            // Only allow assigning to users who are operators in the selected inbox
+            'assigned_to' => [
+                'nullable',
+                'integer',
+                'exists:users,id',
+                Rule::exists('inbox_user_roles', 'user_id')
+                    ->where(fn ($q) => $q->where('inbox_id', $request->inbox_id)->where('role', 'operator')),
+            ],
             'entity_id' => ['nullable', 'integer', 'exists:entities,id'],
             'type_id' => ['nullable', 'integer', 'exists:ticket_types,id'],
             'status_id' => ['required', 'integer', 'exists:ticket_statuses,id'],
@@ -274,13 +345,18 @@ class TicketController
             'known_emails.*' => ['email'],
         ]);
 
+        // Only operators can change status; if not operator, keep current status
+        $user = Auth::user();
+        $canChangeStatus = $user && $user->hasInboxRole($ticket->inbox_id, 'operator');
+        $statusId = $canChangeStatus ? $data['status_id'] : $ticket->status_id;
+
         $ticket->update([
             'inbox_id' => $data['inbox_id'],
             'assigned_to' => $data['assigned_to'] ?? null,
             'subject' => $data['subject'],
             'content' => $data['content'] ?? null,
             'known_emails' => $data['known_emails'] ?? null,
-            'status_id' => $data['status_id'],
+            'status_id' => $statusId,
             'type_id' => $data['type_id'] ?? null,
             'entity_id' => $data['entity_id'] ?? null,
         ]);

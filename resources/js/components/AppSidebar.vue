@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -13,11 +14,11 @@ import {
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import { BookOpen, Folder, LayoutGrid, Mail, Ticket } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
-const mainNavItems: NavItem[] = [
+const baseMainNavItems: NavItem[] = [
     {
         title: 'Dashboard',
         href: dashboard(),
@@ -34,6 +35,16 @@ const mainNavItems: NavItem[] = [
         icon: Mail,
     },
 ];
+
+const page = usePage();
+const mainNavItems = computed<NavItem[]>(() => {
+    const flags = (page.props as any).authFlags || { isOperator: false, isClient: false };
+    const items = [...baseMainNavItems];
+    // Show templates only for operators; hide for everyone else (including clients)
+    return flags.isOperator
+        ? items
+        : items.filter((i) => i.href !== '/notification-templates');
+});
 
 const footerNavItems: NavItem[] = [
     {

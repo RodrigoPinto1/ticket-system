@@ -41,6 +41,7 @@ interface Props {
   entities: SelectOption[]
   operators: Operator[]
   isOperator: boolean
+  defaultStatusId?: number | null
 }
 
 const props = defineProps<Props>()
@@ -52,7 +53,7 @@ const form = useForm({
   assigned_to: '',
   entity_id: '',
   type_id: '',
-  status_id: '',
+  status_id: props.defaultStatusId ? String(props.defaultStatusId) : '',
   known_emails: [] as string[],
 })
 

@@ -419,7 +419,7 @@ const removeAttachment = (index: number) => {
       </Card>
 
       <!-- Activity Log -->
-      <TicketActivityLog v-if="props.ticket.activities" :activities="props.ticket.activities" />
+      <TicketActivityLog v-if="!props.isClient && props.ticket.activities" :activities="props.ticket.activities" />
 
       <!-- Modal: Add Reply -->
       <div
