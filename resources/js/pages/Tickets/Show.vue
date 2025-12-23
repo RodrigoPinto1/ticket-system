@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3'
+import { computed, ref } from 'vue'
+import { Head, Link, router } from '@inertiajs/vue3'
 import { useRoute } from '@/composables/useRoute'
 import AppLayout from '@/layouts/AppLayout.vue'
 import Heading from '@/components/Heading.vue'
@@ -7,8 +8,13 @@ import TicketActivityLog from '@/components/TicketActivityLog.vue'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Label } from '@/components/ui/label'
+import axios from 'axios'
+import { Paperclip } from 'lucide-vue-next'
 
 const route = useRoute()
 
@@ -102,6 +108,19 @@ const props = defineProps<{
   ticket: Ticket
 }>()
 
+const showReplyModal = ref(false)
+const replyProcessing = ref(false)
+const replyContent = ref('')
+const replyCc = ref('')
+const replyInternal = ref(false)
+const replyErrors = ref<Record<string, string[]>>({})
+const replyAttachments = ref<File[]>([])
+
+const replyAttachmentError = computed(() => {
+  const key = Object.keys(replyErrors.value).find((k) => k.startsWith('attachments'))
+  return key ? replyErrors.value[key][0] : null
+})
+
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
   return new Intl.DateTimeFormat('pt-PT', {
@@ -127,6 +146,55 @@ const formatFileSize = (bytes: number) => {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
+
+const submitReply = async () => {
+  replyProcessing.value = true
+  replyErrors.value = {}
+
+  try {
+    const formData = new FormData()
+    formData.append('content', replyContent.value)
+    formData.append('is_internal', replyInternal.value ? '1' : '0')
+
+    const ccList = replyCc.value
+      ? replyCc.value
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0)
+      : []
+
+    ccList.forEach((email) => formData.append('cc[]', email))
+    replyAttachments.value.forEach((file) => formData.append('attachments[]', file))
+
+    await axios.post(route('tickets.reply', props.ticket.id), formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+
+    replyContent.value = ''
+    replyCc.value = ''
+    replyInternal.value = false
+    replyAttachments.value = []
+    showReplyModal.value = false
+
+    router.reload({ only: ['ticket'], preserveScroll: true })
+  } catch (error: any) {
+    if (error?.response?.status === 422) {
+      replyErrors.value = error.response.data.errors || {}
+    }
+  } finally {
+    replyProcessing.value = false
+  }
+}
+
+const onReplyFilesChange = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (!target.files) return
+  replyAttachments.value = Array.from(target.files)
+}
+
+const removeAttachment = (index: number) => {
+  replyAttachments.value.splice(index, 1)
+}
 </script>
 
 <template>
@@ -147,10 +215,12 @@ const formatFileSize = (bytes: number) => {
         </div>
 
         <div class="flex gap-2">
-          <Button variant="outline">
-            Editar Ticket
+          <Button variant="outline" as-child>
+            <Link :href="route('tickets.edit', props.ticket.id)">
+              Editar Ticket
+            </Link>
           </Button>
-          <Button>
+          <Button @click="showReplyModal = true">
             Adicionar Resposta
           </Button>
         </div>
@@ -319,17 +389,19 @@ const formatFileSize = (bytes: number) => {
                   >
                     <div class="text-sm font-medium">Anexos:</div>
                     <div class="flex flex-wrap gap-2">
-                      <Badge
+                      <a
                         v-for="attachment in message.attachments"
                         :key="attachment.id"
-                        variant="outline"
-                        class="cursor-pointer hover:bg-accent"
+                        :href="`/storage/${attachment.file_path}`"
+                        target="_blank"
+                        rel="noreferrer"
+                        class="inline-flex items-center gap-1 rounded-md border px-3 py-1 text-sm hover:bg-accent"
                       >
                         📎 {{ attachment.file_name }}
                         <span class="ml-1 text-xs text-muted-foreground">
                           ({{ formatFileSize(attachment.file_size) }})
                         </span>
-                      </Badge>
+                      </a>
                     </div>
                   </div>
 
@@ -348,5 +420,92 @@ const formatFileSize = (bytes: number) => {
 
       <!-- Activity Log -->
       <TicketActivityLog v-if="props.ticket.activities" :activities="props.ticket.activities" />
+
+      <!-- Modal: Add Reply -->
+      <div
+        v-if="showReplyModal"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+      >
+        <Card class="w-full max-w-xl shadow-xl border border-border/60">
+          <CardHeader>
+            <CardTitle class="text-lg font-semibold">Adicionar Resposta</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form @submit.prevent="submitReply" class="space-y-5">
+              <div class="space-y-2">
+                <Label for="reply_content">Mensagem *</Label>
+                <Textarea
+                  id="reply_content"
+                  v-model="replyContent"
+                  placeholder="Escreva a resposta"
+                  class="min-h-[200px] border-muted bg-muted/40 focus-visible:ring-2 focus-visible:ring-primary"
+                />
+                <p v-if="replyErrors.content" class="text-sm text-destructive">{{ replyErrors.content[0] }}</p>
+              </div>
+
+              <div class="space-y-2">
+                <Label for="reply_cc">CC (separar por vírgulas)</Label>
+                <Input
+                  id="reply_cc"
+                  v-model="replyCc"
+                  type="text"
+                  placeholder="ex: foo@bar.com, baz@bar.com"
+                />
+                <p v-if="replyErrors['cc.0']" class="text-sm text-destructive">{{ replyErrors['cc.0'][0] }}</p>
+              </div>
+
+              <div class="space-y-2">
+                <Label for="reply_attachments">Anexos (imagens ou ficheiros, até 20MB cada)</Label>
+                <div class="relative">
+                  <Paperclip class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    id="reply_attachments"
+                    type="file"
+                    multiple
+                    class="pl-10 cursor-pointer border-dashed"
+                    @change="onReplyFilesChange"
+                  />
+                </div>
+                <p v-if="replyAttachmentError" class="text-sm text-destructive">{{ replyAttachmentError }}</p>
+
+                <div v-if="replyAttachments.length" class="space-y-2 rounded-md border p-3 bg-muted/50">
+                  <div class="text-sm font-medium flex items-center gap-2">
+                    <Paperclip class="h-4 w-4" />
+                    Selecionados
+                  </div>
+                  <div class="space-y-1 text-sm">
+                    <div
+                      v-for="(file, idx) in replyAttachments"
+                      :key="file.name + idx"
+                      class="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 shadow-sm"
+                    >
+                      <span class="truncate">{{ file.name }} ({{ formatFileSize(file.size) }})</span>
+                      <Button variant="ghost" size="sm" type="button" @click="removeAttachment(idx)">
+                        Remover
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between flex-wrap gap-3">
+                <label class="inline-flex items-center gap-2 text-sm">
+                  <input type="checkbox" v-model="replyInternal" class="h-4 w-4" />
+                  Marcar como interno
+                </label>
+
+                <div class="flex gap-2">
+                  <Button type="button" variant="outline" @click="showReplyModal = false">
+                    Cancelar
+                  </Button>
+                  <Button type="submit" :disabled="replyProcessing">
+                    {{ replyProcessing ? 'A enviar...' : 'Enviar' }}
+                  </Button>
+                </div>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
   </div>
 </template>

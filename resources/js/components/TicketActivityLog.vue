@@ -77,7 +77,7 @@ const getUserInitials = (name: string) => {
 
 <template>
   <Card class="shadow-md">
-    <CardHeader class="bg-gradient-to-r from-muted/50 to-muted/20">
+    <CardHeader class="py-3">
       <CardTitle class="flex items-center gap-2">
         <div class="rounded-lg bg-primary/10 p-2">
           <Activity class="h-5 w-5 text-primary" />

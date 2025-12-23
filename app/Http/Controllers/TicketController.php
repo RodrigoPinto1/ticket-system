@@ -117,12 +117,19 @@ class TicketController
         $entities = Entity::select('id', 'name')->get();
         $operators = User::select('id', 'name', 'email')->get();
 
+        // Check if current user is an operator or owner in any inbox
+        $user = Auth::user();
+        $isOperator = $user->inboxRoles()
+            ->whereIn('role', ['operator', 'owner'])
+            ->exists();
+
         return Inertia::render('Tickets/Create', [
             'inboxes' => $inboxes,
             'statuses' => $statuses,
             'types' => $types,
             'entities' => $entities,
             'operators' => $operators,
+            'isOperator' => $isOperator,
         ]);
     }
 
@@ -151,6 +158,33 @@ class TicketController
     }
 
     /**
+     * Show the form for editing a ticket.
+     */
+    public function edit(Ticket $ticket)
+    {
+        $ticket->load(['inbox', 'entity', 'type', 'status', 'assignee', 'requester']);
+
+        $inboxes = Inbox::select('id', 'name')->get();
+        $statuses = TicketStatus::select('id', 'name')->orderBy('order')->get();
+        $types = TicketType::select('id', 'name')->get();
+        $entities = Entity::select('id', 'name')->get();
+        $operators = User::select('id', 'name', 'email')->get();
+
+        $user = Auth::user();
+        $isOperator = $user->inboxRoles()->whereIn('role', ['operator', 'owner'])->exists();
+
+        return Inertia::render('Tickets/Edit', [
+            'ticket' => $ticket,
+            'inboxes' => $inboxes,
+            'statuses' => $statuses,
+            'types' => $types,
+            'entities' => $entities,
+            'operators' => $operators,
+            'isOperator' => $isOperator,
+        ]);
+    }
+
+    /**
      * Store a new ticket.
      */
     public function store(Request $request)
@@ -161,6 +195,9 @@ class TicketController
             'subject' => ['required', 'string', 'max:255'],
             'content' => ['nullable', 'string'],
             'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            'entity_id' => ['nullable', 'integer', 'exists:entities,id'],
+            'type_id' => ['nullable', 'integer', 'exists:ticket_types,id'],
+            'status_id' => ['nullable', 'integer', 'exists:ticket_statuses,id'],
             // known_emails accepts an array of email strings
             'known_emails' => ['nullable', 'array'],
             'known_emails.*' => ['email'],
@@ -170,6 +207,9 @@ class TicketController
         $requesterId = Auth::id();
         $data['requester_id'] = $requesterId;
 
+        // Resolve default status (Pendente) if not provided
+        $statusId = $data['status_id'] ?? TicketStatus::where('slug', 'pending')->value('id');
+
         // Create the ticket (known_emails stored as JSON via model cast)
         $ticket = Ticket::create([
             'inbox_id' => $data['inbox_id'],
@@ -178,8 +218,9 @@ class TicketController
             'subject' => $data['subject'],
             'content' => $data['content'] ?? null,
             'known_emails' => $data['known_emails'] ?? null,
-            'status_id' => null,
-            'type_id' => null,
+            'status_id' => $statusId,
+            'type_id' => $data['type_id'] ?? null,
+            'entity_id' => $data['entity_id'] ?? null,
         ]);
 
         // Notify recipients by enqueuing Mailables with small delays to avoid provider rate limits.
@@ -217,6 +258,37 @@ class TicketController
     }
 
     /**
+     * Update the specified ticket in storage.
+     */
+    public function update(Request $request, Ticket $ticket)
+    {
+        $data = $request->validate([
+            'inbox_id' => ['required', 'integer', 'exists:inboxes,id'],
+            'subject' => ['required', 'string', 'max:255'],
+            'content' => ['nullable', 'string'],
+            'assigned_to' => ['nullable', 'integer', 'exists:users,id'],
+            'entity_id' => ['nullable', 'integer', 'exists:entities,id'],
+            'type_id' => ['nullable', 'integer', 'exists:ticket_types,id'],
+            'status_id' => ['required', 'integer', 'exists:ticket_statuses,id'],
+            'known_emails' => ['nullable', 'array'],
+            'known_emails.*' => ['email'],
+        ]);
+
+        $ticket->update([
+            'inbox_id' => $data['inbox_id'],
+            'assigned_to' => $data['assigned_to'] ?? null,
+            'subject' => $data['subject'],
+            'content' => $data['content'] ?? null,
+            'known_emails' => $data['known_emails'] ?? null,
+            'status_id' => $data['status_id'],
+            'type_id' => $data['type_id'] ?? null,
+            'entity_id' => $data['entity_id'] ?? null,
+        ]);
+
+        return redirect()->route('tickets.show', $ticket->id);
+    }
+
+    /**
      * Reply to a ticket.
      * Creates a new message with support for text, images, and attachments.
      * Notifications are automatically sent via TicketMessageObserver.
@@ -230,7 +302,7 @@ class TicketController
             'cc.*' => ['email'],
             'is_internal' => ['nullable', 'boolean'],
             'attachments' => ['nullable', 'array'],
-            'attachments.*' => ['file', 'max:10240'], // Max 10MB per file
+            'attachments.*' => ['file', 'max:20480'], // Max 20MB per file
         ]);
 
         // Create the message

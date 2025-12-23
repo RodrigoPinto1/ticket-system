@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
 use App\Http\Controllers\TicketController;
+use App\Http\Controllers\EntityController;
+use App\Http\Controllers\TicketTypeController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -28,11 +30,23 @@ Route::middleware(['auth'])->group(function () {
     // View a single ticket with full history
     Route::get('tickets/{ticket}', [TicketController::class, 'show'])->name('tickets.show');
 
+    // Edit a ticket
+    Route::get('tickets/{ticket}/edit', [TicketController::class, 'edit'])->name('tickets.edit');
+
     // Create a new ticket
     Route::post('tickets', [TicketController::class, 'store'])->name('tickets.store');
 
+    // Update an existing ticket
+    Route::put('tickets/{ticket}', [TicketController::class, 'update'])->name('tickets.update');
+
     // Reply to a ticket
     Route::post('tickets/{ticket}/reply', [TicketController::class, 'reply'])->name('tickets.reply');
+
+    // Create a new entity
+    Route::post('entities', [EntityController::class, 'store'])->name('entities.store');
+
+    // Create a new ticket type
+    Route::post('ticket-types', [TicketTypeController::class, 'store'])->name('ticket-types.store');
 });
 
 // Dev helper route: create a ticket quickly without authentication.

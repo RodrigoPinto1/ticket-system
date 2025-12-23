@@ -19,6 +19,7 @@ class Ticket extends Model
         'assigned_to',
         'type_id',
         'status_id',
+        'content',
         'contact_id',
         'known_emails',
         'subject',
