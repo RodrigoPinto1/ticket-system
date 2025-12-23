@@ -14,7 +14,7 @@ import {
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Ticket } from 'lucide-vue-next';
+import { BookOpen, Folder, LayoutGrid, Mail, Ticket } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const mainNavItems: NavItem[] = [
@@ -27,6 +27,11 @@ const mainNavItems: NavItem[] = [
         title: 'Tickets',
         href: '/tickets',
         icon: Ticket,
+    },
+    {
+        title: 'Templates de E-mail',
+        href: '/notification-templates',
+        icon: Mail,
     },
 ];
 
