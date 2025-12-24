@@ -1203,3 +1203,58 @@ Did you mean one of these?
 [2025-12-24 18:50:39] local.INFO: TicketController: Sending email {"ticket_id":2,"recipient_email":"jhon@doe.com","delay_seconds":15} 
 [2025-12-24 18:50:39] local.INFO: TicketController: Sending email {"ticket_id":2,"recipient_email":"apoio.operator@example.com","delay_seconds":30} 
 [2025-12-24 18:50:39] local.INFO: TicketController: Sending email {"ticket_id":2,"recipient_email":"jane@doe.com","delay_seconds":45} 
+[2025-12-24 18:50:55] local.INFO: SendTicketNotificationEmail: Sending email {"ticket_id":2,"recipient_email":"jhon@doe.com"} 
+[2025-12-24 18:50:58] local.INFO: SendTicketNotificationEmail: Email sent successfully {"ticket_id":2,"recipient_email":"jhon@doe.com"} 
+[2025-12-24 18:51:11] local.INFO: SendTicketNotificationEmail: Sending email {"ticket_id":2,"recipient_email":"apoio.operator@example.com"} 
+[2025-12-24 18:51:12] local.INFO: SendTicketNotificationEmail: Email sent successfully {"ticket_id":2,"recipient_email":"apoio.operator@example.com"} 
+[2025-12-24 18:51:26] local.INFO: SendTicketNotificationEmail: Sending email {"ticket_id":2,"recipient_email":"jane@doe.com"} 
+[2025-12-24 18:51:26] local.INFO: SendTicketNotificationEmail: Email sent successfully {"ticket_id":2,"recipient_email":"jane@doe.com"} 
+[2025-12-24 18:53:58] local.INFO: TicketController: Reply received {"ticket_id":2,"user_id":1,"has_cc":true,"cc":["dev1@gmail.com"],"cc_count":1} 
+[2025-12-24 18:53:58] local.INFO: TicketMessageObserver: Processing message CC {"message_id":2,"cc_emails":["dev1@gmail.com"],"current_recipients":["jhon@doe.com","jane@doe.com","dev1@gmail.com"]} 
+[2025-12-24 18:53:58] local.INFO: TicketMessageObserver: Final recipients list {"message_id":2,"ticket_id":2,"message_cc":["dev1@gmail.com"],"ticket_known_emails":["jane@doe.com","dev1@gmail.com"],"total_recipients":3,"recipients":["jhon@doe.com","jane@doe.com","dev1@gmail.com"],"total_operator_recipients":1,"operator_recipients":["apoio.operator@example.com"]} 
+[2025-12-24 18:53:58] local.INFO: TicketMessageObserver: Dispatching email {"ticket_id":2,"message_id":2,"recipient":"jhon@doe.com","delay_seconds":15,"index":0} 
+[2025-12-24 18:53:58] local.INFO: TicketMessageObserver: Dispatching email {"ticket_id":2,"message_id":2,"recipient":"jane@doe.com","delay_seconds":30,"index":1} 
+[2025-12-24 18:53:58] local.INFO: TicketMessageObserver: Dispatching email {"ticket_id":2,"message_id":2,"recipient":"dev1@gmail.com","delay_seconds":45,"index":2} 
+[2025-12-24 18:53:58] local.INFO: TicketMessageObserver: Dispatching email {"ticket_id":2,"message_id":2,"recipient":"apoio.operator@example.com","delay_seconds":60,"index":3} 
+[2025-12-24 18:54:16] local.INFO: SendTicketReplyEmail: Sending email {"ticket_id":2,"message_id":2,"recipient_email":"jhon@doe.com"} 
+[2025-12-24 18:54:17] local.INFO: SendTicketReplyEmail: Email sent successfully {"ticket_id":2,"message_id":2,"recipient_email":"jhon@doe.com"} 
+[2025-12-24 18:54:30] local.INFO: SendTicketReplyEmail: Sending email {"ticket_id":2,"message_id":2,"recipient_email":"jane@doe.com"} 
+[2025-12-24 18:54:31] local.INFO: SendTicketReplyEmail: Email sent successfully {"ticket_id":2,"message_id":2,"recipient_email":"jane@doe.com"} 
+[2025-12-24 18:54:44] local.INFO: SendTicketReplyEmail: Sending email {"ticket_id":2,"message_id":2,"recipient_email":"dev1@gmail.com"} 
+[2025-12-24 18:54:45] local.INFO: SendTicketReplyEmail: Email sent successfully {"ticket_id":2,"message_id":2,"recipient_email":"dev1@gmail.com"} 
+[2025-12-24 18:55:01] local.INFO: SendTicketReplyEmail: Sending email {"ticket_id":2,"message_id":2,"recipient_email":"apoio.operator@example.com"} 
+[2025-12-24 18:55:03] local.INFO: SendTicketReplyEmail: Email sent successfully {"ticket_id":2,"message_id":2,"recipient_email":"apoio.operator@example.com"} 
+[2025-12-24 19:01:03] local.INFO: TicketController: Found operators for ticket {"ticket_id":3,"inbox_id":"2","operator_count":2,"operator_emails":["jhon@doe.com","apoio.operator@example.com"]} 
+[2025-12-24 19:01:03] local.INFO: TicketController: Sending email {"ticket_id":3,"recipient_email":"operator@gmail.com","delay_seconds":15} 
+[2025-12-24 19:01:03] local.INFO: TicketController: Sending email {"ticket_id":3,"recipient_email":"jhon@doe.com","delay_seconds":30} 
+[2025-12-24 19:01:03] local.INFO: TicketController: Sending email {"ticket_id":3,"recipient_email":"apoio.operator@example.com","delay_seconds":45} 
+[2025-12-24 19:01:20] local.INFO: SendTicketNotificationEmail: Sending email {"ticket_id":3,"recipient_email":"operator@gmail.com"} 
+[2025-12-24 19:01:24] local.INFO: SendTicketNotificationEmail: Email sent successfully {"ticket_id":3,"recipient_email":"operator@gmail.com"} 
+[2025-12-24 19:01:34] local.INFO: SendTicketNotificationEmail: Sending email {"ticket_id":3,"recipient_email":"jhon@doe.com"} 
+[2025-12-24 19:01:35] local.INFO: SendTicketNotificationEmail: Email sent successfully {"ticket_id":3,"recipient_email":"jhon@doe.com"} 
+[2025-12-24 19:01:51] local.INFO: SendTicketNotificationEmail: Sending email {"ticket_id":3,"recipient_email":"apoio.operator@example.com"} 
+[2025-12-24 19:01:52] local.INFO: SendTicketNotificationEmail: Email sent successfully {"ticket_id":3,"recipient_email":"apoio.operator@example.com"} 
+[2025-12-24 19:03:00] local.ERROR: mkdir(): File exists {"exception":"[object] (ErrorException(code: 0): mkdir(): File exists at C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Filesystem\\Filesystem.php:662)
+[stacktrace]
+#0 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Bootstrap\\HandleExceptions.php(258): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleError(2, 'mkdir(): File e...', 'C:\\\\Projects\\\\Est...', 662)
+#1 [internal function]: Illuminate\\Foundation\\Bootstrap\\HandleExceptions->{closure:Illuminate\\Foundation\\Bootstrap\\HandleExceptions::forwardsTo():257}(2, 'mkdir(): File e...', 'C:\\\\Projects\\\\Est...', 662)
+#2 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Filesystem\\Filesystem.php(662): mkdir('C:\\\\Projects\\\\Est...', 493, true)
+#3 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Filesystem\\Filesystem.php(643): Illuminate\\Filesystem\\Filesystem->makeDirectory('C:\\\\Projects\\\\Est...', 493, true)
+#4 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\wayfinder\\src\\GenerateCommand.php(127): Illuminate\\Filesystem\\Filesystem->ensureDirectoryExists('C:\\\\Projects\\\\Est...')
+#5 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\wayfinder\\src\\GenerateCommand.php(82): Laravel\\Wayfinder\\GenerateCommand->writeContent()
+#6 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(36): Laravel\\Wayfinder\\GenerateCommand->handle()
+#7 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
+#8 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(96): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
+#9 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
+#10 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Container\\Container.php(799): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
+#11 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Console\\Command.php(211): Illuminate\\Container\\Container->call(Array)
+#12 C:\\Projects\\Estagio\\ticket-system\\vendor\\symfony\\console\\Command\\Command.php(341): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#13 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Console\\Command.php(180): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#14 C:\\Projects\\Estagio\\ticket-system\\vendor\\symfony\\console\\Application.php(1102): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#15 C:\\Projects\\Estagio\\ticket-system\\vendor\\symfony\\console\\Application.php(356): Symfony\\Component\\Console\\Application->doRunCommand(Object(Laravel\\Wayfinder\\GenerateCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#16 C:\\Projects\\Estagio\\ticket-system\\vendor\\symfony\\console\\Application.php(195): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#17 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Console\\Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#18 C:\\Projects\\Estagio\\ticket-system\\vendor\\laravel\\framework\\src\\Illuminate\\Foundation\\Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#19 C:\\Projects\\Estagio\\ticket-system\\artisan(16): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#20 {main}
+"} 
