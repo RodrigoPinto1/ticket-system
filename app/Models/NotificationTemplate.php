@@ -10,6 +10,7 @@ class NotificationTemplate extends Model
     use HasFactory;
 
     protected $fillable = [
+        'inbox_id',
         'slug',
         'subject',
         'body_html',

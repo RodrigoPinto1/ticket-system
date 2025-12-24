@@ -25,8 +25,10 @@ class DatabaseSeeder extends Seeder
 
         // Seed initial data
         $this->call([
+            InboxesSeeder::class,
             TicketStatusSeeder::class,
             InboxUserRoleSeeder::class,
+            OperatorAssignmentsSeeder::class,
             NotificationTemplateSeeder::class,
         ]);
     }

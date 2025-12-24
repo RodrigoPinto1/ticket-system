@@ -34,7 +34,7 @@ class TicketReplied extends Mailable
 
         $url = rtrim(config('app.url', env('APP_URL', 'https://ticket-system.test/')), '/') . '/tickets/' . ($this->ticket->id ?? '');
 
-        $template = $renderer->render('ticket_replied', [
+        $template = $renderer->renderForInbox('ticket_replied', $this->ticket->inbox_id ?? null, [
             'ticket' => [
                 'number' => $this->ticket->ticket_number ?? 'N/A',
                 'subject' => $this->ticket->subject ?? 'Ticket',

@@ -104,9 +104,13 @@ interface Ticket {
   closed_at?: string
 }
 
-const props = defineProps<{
+interface Props {
   ticket: Ticket
-}>()
+  isClient?: boolean
+  isOperator?: boolean
+}
+
+const props = defineProps<Props>()
 
 const showReplyModal = ref(false)
 const replyProcessing = ref(false)
@@ -176,7 +180,7 @@ const submitReply = async () => {
     replyAttachments.value = []
     showReplyModal.value = false
 
-    router.reload({ only: ['ticket'], preserveScroll: true })
+    router.reload({ only: ['ticket'] })
   } catch (error: any) {
     if (error?.response?.status === 422) {
       replyErrors.value = error.response.data.errors || {}
@@ -214,7 +218,7 @@ const removeAttachment = (index: number) => {
           <Heading :title="props.ticket.ticket_number" :description="props.ticket.subject" />
         </div>
 
-        <div class="flex gap-2">
+        <div class="flex gap-0">
           <Button variant="outline" as-child>
             <Link :href="route('tickets.edit', props.ticket.id)">
               Editar Ticket

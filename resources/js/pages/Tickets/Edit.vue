@@ -67,18 +67,35 @@ const form = useForm({
 const emailInput = ref('')
 
 // Modal states
+const showAddInboxModal = ref(false)
 const showAddEntityModal = ref(false)
 const showAddTypeModal = ref(false)
 
-// New entity/type forms
+// New inbox/entity/type forms
+const newInbox = reactive({ name: '', description: '' })
 const newEntity = reactive({ nif: '', name: '', email: '', phone: '', mobile: '', website: '' })
 const newType = reactive({ name: '', description: '' })
 
+const inboxForm = useForm(newInbox)
 const entityForm = useForm(newEntity)
 const typeForm = useForm(newType)
 
+const inboxes = ref(props.inboxes)
 const entities = ref(props.entities)
 const types = ref(props.types)
+const addInbox = async () => {
+  try {
+    inboxForm.processing = true
+    const { data } = await axios.post(route('inboxes.store'), inboxForm.data())
+    const newIb = data.inbox
+    inboxes.value.push(newIb)
+    form.inbox_id = String(newIb.id)
+    showAddInboxModal.value = false
+    inboxForm.reset(); inboxForm.errors = {}
+  } catch (e: any) {
+    if (e?.response?.status === 422) inboxForm.errors = e.response.data.errors || {}
+  } finally { inboxForm.processing = false }
+}
 
 const addEmail = () => {
   if (emailInput.value && emailInput.value.includes('@')) {
@@ -156,24 +173,54 @@ const submit = () => {
           <!-- Inbox -->
           <div class="space-y-2">
             <Label for="inbox_id">Inbox *</Label>
-            <Select v-model="form.inbox_id">
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um inbox" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="inbox in props.inboxes" :key="inbox.id" :value="String(inbox.id)">
-                  {{ inbox.name }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <div class="flex items-center gap-0">
+              <Select v-model="form.inbox_id" class="flex-1">
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um inbox" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="inbox in inboxes" :key="inbox.id" :value="String(inbox.id)">
+                    {{ inbox.name }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <button v-if="props.isOperator" type="button" @click="showAddInboxModal = true"
+                class="btn btn-sm btn-ghost h-auto py-1 px-2 -ml-px text-sm hover:bg-base-300 hover:text-base-content flex items-center transition-all duration-200 ease-in-out hover:scale-105">
+                <Plus class="h-4 w-4" /> <span class="hidden sm:inline">Adicionar</span>
+              </button>
+            </div>
             <p v-if="form.errors.inbox_id" class="text-sm text-destructive">{{ form.errors.inbox_id }}</p>
           </div>
+    <!-- Modal: Add Inbox -->
+    <div v-if="showAddInboxModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <Card class="w-full max-w-md">
+        <CardHeader><CardTitle>Adicionar Inbox</CardTitle></CardHeader>
+        <CardContent>
+          <form @submit.prevent="addInbox" class="space-y-4">
+            <div class="space-y-2">
+              <Label for="inbox_name">Nome *</Label>
+              <Input id="inbox_name" v-model="inboxForm.name" type="text" placeholder="Nome do inbox" required />
+              <p v-if="inboxForm.errors.name" class="text-sm text-destructive">{{ inboxForm.errors.name }}</p>
+            </div>
+            <div class="space-y-2">
+              <Label for="inbox_description">Descrição</Label>
+              <Textarea id="inbox_description" v-model="inboxForm.description" placeholder="Descrição (opcional)" />
+              <p v-if="inboxForm.errors.description" class="text-sm text-destructive">{{ inboxForm.errors.description }}</p>
+            </div>
+            <div class="flex gap-2">
+              <Button type="submit" :disabled="inboxForm.processing">{{ inboxForm.processing ? 'Adicionando...' : 'Adicionar' }}</Button>
+              <Button type="button" variant="outline" @click="showAddInboxModal = false">Cancelar</Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
 
           <!-- Entity, Type, Status (Inline) -->
           <div class="grid grid-cols-3 gap-4">
             <!-- Entity -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between gap-2">
+            <div class="space-y-1">
+              <div class="flex items-center justify-between gap-2 min-h-[36px]">
                 <Label for="entity_id">Entidade</Label>
                 <button v-if="props.isOperator" type="button" @click="showAddEntityModal = true"
                   class="btn btn-sm btn-ghost gap-1 h-auto py-1 px-2 text-sm hover:bg-base-300 hover:text-base-content flex items-center transition-all duration-200 ease-in-out hover:scale-105">
@@ -194,8 +241,8 @@ const submit = () => {
             </div>
 
             <!-- Type -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between gap-2">
+            <div class="space-y-1">
+              <div class="flex items-center justify-between gap-2 min-h-[36px]">
                 <Label for="type_id">Tipo</Label>
                 <button v-if="props.isOperator" type="button" @click="showAddTypeModal = true"
                   class="btn btn-sm btn-ghost gap-1 h-auto py-1 px-2 text-sm hover:bg-base-300 hover:text-base-content flex items-center transition-all duration-200 ease-in-out hover:scale-105">
@@ -216,8 +263,15 @@ const submit = () => {
             </div>
 
             <!-- Status -->
-            <div class="space-y-2">
-              <Label for="status_id">Estado</Label>
+            <div class="space-y-1">
+              <div class="flex items-center justify-between gap-2 min-h-[36px]">
+                <Label for="status_id">Estado</Label>
+                <!-- Placeholder button to align with Entity/Type when operator has add buttons -->
+                <button v-if="props.isOperator" type="button"
+                  class="btn btn-sm btn-ghost gap-1 h-auto py-1 px-2 text-sm opacity-0 pointer-events-none">
+                  <Plus class="h-4 w-4" /> <span class="hidden sm:inline">Adicionar</span>
+                </button>
+              </div>
               <template v-if="props.isOperator">
                 <Select v-model="form.status_id">
                   <SelectTrigger>
@@ -231,10 +285,16 @@ const submit = () => {
                 </Select>
               </template>
               <template v-else>
-                <div class="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                  Estado atual: <span class="font-semibold text-foreground">
-                    {{ (props.statuses.find((s) => String(s.id) === form.status_id)?.name) || '—' }}</span>
-                </div>
+                <Select v-model="form.status_id" disabled>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="status in props.statuses" :key="status.id" :value="String(status.id)">
+                      {{ status.name }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </template>
               <p v-if="form.errors.status_id" class="text-sm text-destructive">{{ form.errors.status_id }}</p>
             </div>
@@ -294,7 +354,7 @@ const submit = () => {
           </div>
 
           <!-- Submit Button -->
-          <div class="flex gap-2 pt-4">
+          <div class="flex gap-0 pt-2">
             <Button type="submit" :disabled="form.processing">
               {{ form.processing ? 'A guardar...' : 'Guardar Alterações' }}
             </Button>
@@ -335,7 +395,7 @@ const submit = () => {
               <Label for="entity_mobile">Telemóvel</Label>
               <Input id="entity_mobile" v-model="entityForm.mobile" type="text" placeholder="Telemóvel" />
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-0">
               <Button type="submit" :disabled="entityForm.processing">{{ entityForm.processing ? 'Adicionando...' : 'Adicionar' }}</Button>
               <Button type="button" variant="outline" @click="showAddEntityModal = false">Cancelar</Button>
             </div>
@@ -359,7 +419,7 @@ const submit = () => {
               <Label for="type_description">Descrição</Label>
               <Textarea id="type_description" v-model="typeForm.description" placeholder="Descrição (opcional)" class="min-h-[80px]" />
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-0">
               <Button type="submit" :disabled="typeForm.processing">{{ typeForm.processing ? 'Adicionando...' : 'Adicionar' }}</Button>
               <Button type="button" variant="outline" @click="showAddTypeModal = false">Cancelar</Button>
             </div>

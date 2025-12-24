@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Plus } from 'lucide-vue-next'
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import axios from 'axios'
 import AppLayout from '@/layouts/AppLayout.vue'
 
@@ -34,12 +34,18 @@ interface Operator extends SelectOption {
   email: string
 }
 
+interface OperatorAssignment {
+  inbox_id: number
+  user: Operator
+}
+
 interface Props {
   inboxes: SelectOption[]
   statuses: SelectOption[]
   types: SelectOption[]
   entities: SelectOption[]
   operators: Operator[]
+  operatorAssignments: OperatorAssignment[]
   isOperator: boolean
   defaultStatusId?: number | null
 }
@@ -59,11 +65,28 @@ const form = useForm({
 
 const emailInput = ref('')
 
+// Filter operators by selected inbox
+const filteredOperators = computed<Operator[]>(() => {
+  const inboxId = Number(form.inbox_id || 0)
+  if (!inboxId) return []
+  const assignments = props.operatorAssignments || []
+  return assignments
+    .filter(a => a.inbox_id === inboxId)
+    .map(a => a.user)
+})
+
+// Reset assignee if inbox changes to avoid cross-inbox assignment
+watch(() => form.inbox_id, () => {
+  form.assigned_to = ''
+})
+
 // Modal states
+const showAddInboxModal = ref(false)
 const showAddEntityModal = ref(false)
 const showAddTypeModal = ref(false)
 
-// Form states for new entity/type
+// Form states for new inbox/entity/type
+const newInbox = reactive({ name: '', description: '' })
 const newEntity = reactive({
   nif: '',
   name: '',
@@ -78,12 +101,27 @@ const newType = reactive({
   description: '',
 })
 
+const inboxForm = useForm(newInbox)
 const entityForm = useForm(newEntity)
 const typeForm = useForm(newType)
 
 // Local lists to manage dynamic options
+const inboxes = ref(props.inboxes)
 const entities = ref(props.entities)
 const types = ref(props.types)
+const addInbox = async () => {
+  try {
+    inboxForm.processing = true
+    const { data } = await axios.post(route('inboxes.store'), inboxForm.data())
+    const newIb = data.inbox
+    inboxes.value.push(newIb)
+    form.inbox_id = String(newIb.id)
+    showAddInboxModal.value = false
+    inboxForm.reset(); inboxForm.errors = {}
+  } catch (e: any) {
+    if (e?.response?.status === 422) inboxForm.errors = e.response.data.errors || {}
+  } finally { inboxForm.processing = false }
+}
 
 const addEmail = () => {
   if (emailInput.value && emailInput.value.includes('@')) {
@@ -176,30 +214,56 @@ const submit = () => {
           <!-- Inbox -->
           <div class="space-y-2">
             <Label for="inbox_id">Inbox *</Label>
-            <Select v-model="form.inbox_id">
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione um inbox" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="inbox in props.inboxes"
-                  :key="inbox.id"
-                  :value="String(inbox.id)"
-                >
-                  {{ inbox.name }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <div class="flex items-center gap-0">
+              <Select v-model="form.inbox_id" class="flex-1">
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um inbox" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="inbox in inboxes"
+                    :key="inbox.id"
+                    :value="String(inbox.id)"
+                  >
+                    {{ inbox.name }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <p v-if="form.errors.inbox_id" class="text-sm text-destructive">
               {{ form.errors.inbox_id }}
             </p>
           </div>
+    <!-- Modal: Add Inbox -->
+    <div v-if="showAddInboxModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <Card class="w-full max-w-md">
+        <CardHeader><CardTitle>Adicionar Inbox</CardTitle></CardHeader>
+        <CardContent>
+          <form @submit.prevent="addInbox" class="space-y-4">
+            <div class="space-y-2">
+              <Label for="inbox_name">Nome *</Label>
+              <Input id="inbox_name" v-model="inboxForm.name" type="text" placeholder="Nome do inbox" required />
+              <p v-if="inboxForm.errors.name" class="text-sm text-destructive">{{ inboxForm.errors.name }}</p>
+            </div>
+            <div class="space-y-2">
+              <Label for="inbox_description">Descrição</Label>
+              <Textarea id="inbox_description" v-model="inboxForm.description" placeholder="Descrição (opcional)" />
+              <p v-if="inboxForm.errors.description" class="text-sm text-destructive">{{ inboxForm.errors.description }}</p>
+            </div>
+            <div class="flex gap-2">
+              <Button type="submit" :disabled="inboxForm.processing">{{ inboxForm.processing ? 'Adicionando...' : 'Adicionar' }}</Button>
+              <Button type="button" variant="outline" @click="showAddInboxModal = false">Cancelar</Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
 
           <!-- Entity, Type, Status (Inline) -->
           <div class="grid grid-cols-3 gap-4">
             <!-- Entity -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between gap-2">
+            <div class="space-y-1">
+              <div class="flex items-center justify-between gap-2 min-h-[36px]">
                 <Label for="entity_id">Entidade</Label>
                 <button
                   v-if="props.isOperator"
@@ -231,8 +295,8 @@ const submit = () => {
             </div>
 
             <!-- Type -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between gap-2">
+            <div class="space-y-1">
+              <div class="flex items-center justify-between gap-2 min-h-[36px]">
                 <Label for="type_id">Tipo</Label>
                 <button
                   v-if="props.isOperator"
@@ -264,8 +328,19 @@ const submit = () => {
             </div>
 
             <!-- Status -->
-            <div class="space-y-2">
-              <Label for="status_id">Estado</Label>
+            <div class="space-y-1">
+              <div class="flex items-center justify-between gap-2 min-h-[36px]">
+                <Label for="status_id">Estado</Label>
+                <!-- Placeholder button to align with Entity/Type when operator has add buttons -->
+                <button
+                  v-if="props.isOperator"
+                  type="button"
+                  class="btn btn-sm btn-ghost gap-1 h-auto py-1 px-2 text-sm opacity-0 pointer-events-none"
+                >
+                  <Plus class="h-4 w-4" />
+                  <span class="hidden sm:inline">Adicionar</span>
+                </button>
+              </div>
               <Select v-model="form.status_id">
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um estado (opcional)" />
@@ -323,11 +398,7 @@ const submit = () => {
                 <SelectValue placeholder="Selecione um operador (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem
-                  v-for="operator in props.operators"
-                  :key="operator.id"
-                  :value="String(operator.id)"
-                >
+                <SelectItem v-for="operator in filteredOperators" :key="operator.id" :value="String(operator.id)">
                   {{ operator.name }} ({{ operator.email }})
                 </SelectItem>
               </SelectContent>
@@ -373,7 +444,7 @@ const submit = () => {
           </div>
 
           <!-- Submit Button -->
-          <div class="flex gap-2 pt-4">
+          <div class="flex gap-2 pt-2">
             <Button type="submit" :disabled="form.processing">
               {{ form.processing ? 'Criando...' : 'Criar Ticket' }}
             </Button>
@@ -457,7 +528,7 @@ const submit = () => {
               />
             </div>
 
-            <div class="flex gap-2">
+            <div class="flex gap-0">
               <Button type="submit" :disabled="entityForm.processing">
                 {{ entityForm.processing ? 'Adicionando...' : 'Adicionar' }}
               </Button>
@@ -502,7 +573,7 @@ const submit = () => {
               />
             </div>
 
-            <div class="flex gap-2">
+            <div class="flex gap-0">
               <Button type="submit" :disabled="typeForm.processing">
                 {{ typeForm.processing ? 'Adicionando...' : 'Adicionar' }}
               </Button>

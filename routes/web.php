@@ -7,6 +7,7 @@ use App\Http\Controllers\TicketController;
 use App\Http\Controllers\EntityController;
 use App\Http\Controllers\TicketTypeController;
 use App\Http\Controllers\NotificationTemplateController;
+use App\Http\Controllers\InboxController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -48,6 +49,9 @@ Route::middleware(['auth'])->group(function () {
 
     // Create a new ticket type
     Route::post('ticket-types', [TicketTypeController::class, 'store'])->name('ticket-types.store');
+
+    // Create a new inbox (operators/owners only)
+    Route::post('inboxes', [InboxController::class, 'store'])->name('inboxes.store');
 
     // Notification templates management
     Route::get('notification-templates', [NotificationTemplateController::class, 'index'])->name('notification-templates.index');

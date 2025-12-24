@@ -38,10 +38,11 @@ const baseMainNavItems: NavItem[] = [
 
 const page = usePage();
 const mainNavItems = computed<NavItem[]>(() => {
-    const flags = (page.props as any).authFlags || { isOperator: false, isClient: false };
+    const flags = (page.props as any).authFlags || { isOperator: false, isOwner: false, isClient: false };
     const items = [...baseMainNavItems];
-    // Show templates only for operators; hide for everyone else (including clients)
-    return flags.isOperator
+    // Show templates only for operators or owners; hide for clients/others
+    const canSeeTemplates = !!flags.isOperator || !!flags.isOwner;
+    return canSeeTemplates
         ? items
         : items.filter((i) => i.href !== '/notification-templates');
 });

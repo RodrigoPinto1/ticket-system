@@ -35,15 +35,18 @@ class AppServiceProvider extends ServiceProvider
             if (!$user) {
                 return [
                     'isOperator' => false,
+                    'isOwner' => false,
                     'isClient' => false,
                 ];
             }
 
             $isOperator = $user->inboxRoles()->where('role', 'operator')->exists();
+            $isOwner = $user->inboxRoles()->where('role', 'owner')->exists();
             $isClient = $user->inboxRoles()->where('role', 'client')->exists();
 
             return [
                 'isOperator' => $isOperator,
+                'isOwner' => $isOwner,
                 'isClient' => $isClient,
             ];
         });

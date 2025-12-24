@@ -10,18 +10,32 @@ use Inertia\Inertia;
 
 class NotificationTemplateController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
-        $isOperator = $user && $user->inboxRoles()->where('role', 'operator')->exists();
+        $isOperator = $user && $user->inboxRoles()->whereIn('role', ['owner', 'operator'])->exists();
         if (!$isOperator) {
             abort(403, 'Acesso restrito a operadores');
         }
 
-        $templates = NotificationTemplate::orderBy('slug')->get();
+        // Optional filter by inbox; null means global templates
+        $query = NotificationTemplate::query()->orderBy('slug');
+        if ($request->filled('inbox_id')) {
+            $query->where('inbox_id', $request->inbox_id);
+        }
+        $templates = $query->get();
+
+        // Provide inboxes for filtering in the UI
+        $inboxes = \App\Models\Inbox::select('id', 'name')->get();
 
         return Inertia::render('NotificationTemplates/Index', [
             'templates' => $templates,
+            'filters' => [
+                'inboxes' => $inboxes,
+            ],
+            'queryParams' => [
+                'inbox_id' => $request->inbox_id,
+            ],
         ]);
     }
 

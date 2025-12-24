@@ -131,12 +131,29 @@ class TicketController extends Controller
         $statuses = TicketStatus::select('id', 'name')->get();
         $types = TicketType::select('id', 'name')->get();
         $entities = Entity::select('id', 'name')->get();
-        // Only list users who have operator role (any inbox)
+        // List users who have operator role (any inbox)
         $operators = User::select('id', 'name', 'email')
             ->whereHas('inboxRoles', function ($q) {
                 $q->where('role', 'operator');
             })
             ->get();
+
+        // Operator assignments per inbox (to filter assignees by selected inbox on the client)
+        $operatorAssignments = InboxUserRole::with(['user' => function ($q) {
+                $q->select('id', 'name', 'email');
+            }])
+            ->where('role', 'operator')
+            ->get()
+            ->map(function (InboxUserRole $r) {
+                return [
+                    'inbox_id' => $r->inbox_id,
+                    'user' => [
+                        'id' => $r->user->id,
+                        'name' => $r->user->name,
+                        'email' => $r->user->email,
+                    ],
+                ];
+            });
 
         // Check if current user is an operator or owner in any inbox
         $user = Auth::user();
@@ -154,7 +171,8 @@ class TicketController extends Controller
             'entities' => $entities,
             'operators' => $operators,
             'isOperator' => $isOperator,
-                'defaultStatusId' => $defaultStatusId,
+            'defaultStatusId' => $defaultStatusId,
+            'operatorAssignments' => $operatorAssignments,
         ]);
     }
 
