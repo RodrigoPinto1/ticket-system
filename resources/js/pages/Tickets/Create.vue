@@ -341,20 +341,38 @@ const submit = () => {
                   <span class="hidden sm:inline">Adicionar</span>
                 </button>
               </div>
-              <Select v-model="form.status_id">
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um estado (opcional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem
-                    v-for="status in props.statuses"
-                    :key="status.id"
-                    :value="String(status.id)"
-                  >
-                    {{ status.name }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              <template v-if="props.isOperator">
+                <Select v-model="form.status_id">
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um estado (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      v-for="status in props.statuses"
+                      :key="status.id"
+                      :value="String(status.id)"
+                    >
+                      {{ status.name }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </template>
+              <template v-else>
+                <Select v-model="form.status_id" disabled>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      v-for="status in props.statuses"
+                      :key="status.id"
+                      :value="String(status.id)"
+                    >
+                      {{ status.name }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </template>
               <p v-if="form.errors.status_id" class="text-sm text-destructive">
                 {{ form.errors.status_id }}
               </p>

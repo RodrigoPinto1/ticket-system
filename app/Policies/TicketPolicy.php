@@ -14,23 +14,9 @@ class TicketPolicy
 
     public function view(User $user, Ticket $ticket): bool
     {
-        // The ticket creator can always view their own ticket
-        if ($user->id === $ticket->requester_id) {
-            return true;
-        }
-
-        // Operators and owners can view any ticket in the inbox they have access to
-        if ($user->hasInboxRole($ticket->inbox_id, ['owner', 'operator'])) {
-            return true;
-        }
-
-        // Other clients can only view if ticket belongs to their entity (and they somehow have inbox role)
-        if ($user->hasInboxRole($ticket->inbox_id, 'client')) {
-            return $user->entity_id
-                && $ticket->entity_id === $user->entity_id;
-        }
-
-        return false;
+        // Allow all authenticated users to view ticket details
+        // Business decision: visibility is open; edits remain restricted elsewhere
+        return true;
     }
 
     public function create(User $user): bool

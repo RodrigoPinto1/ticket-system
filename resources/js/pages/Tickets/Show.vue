@@ -218,7 +218,7 @@ const removeAttachment = (index: number) => {
           <Heading :title="props.ticket.ticket_number" :description="props.ticket.subject" />
         </div>
 
-        <div class="flex gap-0">
+        <div class="flex gap-2">
           <Button variant="outline" as-child>
             <Link :href="route('tickets.edit', props.ticket.id)">
               Editar Ticket
