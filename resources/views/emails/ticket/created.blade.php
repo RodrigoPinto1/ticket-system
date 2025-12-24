@@ -8,7 +8,8 @@
 <body class="bg-gray-100 antialiased">
     <div class="max-w-3xl mx-auto my-6 bg-white rounded-lg shadow-md overflow-hidden">
         <div class="bg-gradient-to-r from-blue-600 to-sky-400 text-white p-4">
-            <h1 class="text-lg font-semibold">Ticket criado — {{ $ticket->ticket_number ?? 'N/A' }}</h1>
+            <h1 class="text-lg font-semibold">Ticket {{ $ticket->ticket_number ?? 'N/A' }} criado:</h1>
+            <p class="text-sm mt-2 text-blue-100">{{ $ticket->subject }}</p>
         </div>
 
         <div class="p-6 text-gray-800">

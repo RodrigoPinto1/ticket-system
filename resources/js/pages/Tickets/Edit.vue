@@ -319,8 +319,8 @@ const submit = () => {
             <p v-if="form.errors.content" class="text-sm text-destructive">{{ form.errors.content }}</p>
           </div>
 
-          <!-- Assigned To -->
-          <div class="space-y-2">
+          <!-- Assigned To (apenas para operadores) -->
+          <div v-if="props.isOperator" class="space-y-2">
             <Label for="assigned_to">Operador Responsável</Label>
             <Select v-model="form.assigned_to">
               <SelectTrigger>

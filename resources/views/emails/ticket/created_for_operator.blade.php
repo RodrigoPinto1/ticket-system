@@ -115,7 +115,8 @@
 <body>
     <div class="email-wrapper">
         <div class="email-header">
-            <h1>🎫 Novo Ticket</h1>
+            <h1>Ticket {{ $ticket->ticket_number ?? 'N/A' }} criado:</h1>
+            <p style="color: #e0e7ff; margin-top: 12px; font-size: 16px;">{{ $ticket->subject ?? 'Sem assunto' }}</p>
         </div>
 
         <div class="email-content">

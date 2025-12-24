@@ -283,6 +283,11 @@ class TicketController extends Controller
         // Check if user is operator or owner
         $isOperatorOrOwner = $user->inboxRoles()->whereIn('role', ['owner', 'operator'])->exists();
 
+        // Only operators can assign tickets to someone
+        if (!$isOperatorOrOwner && !empty($data['assigned_to'])) {
+            abort(403, 'Apenas operadores podem atribuir responsáveis ao ticket');
+        }
+
         // If user is a client, enforce entity restriction
         if (!$isOperatorOrOwner) {
             // Clients must create tickets for their own entity
@@ -424,6 +429,12 @@ class TicketController extends Controller
         $user = Auth::user();
         $canChangeStatus = $user && $user->hasInboxRole($ticket->inbox_id, 'operator');
         $statusId = $canChangeStatus ? $data['status_id'] : $ticket->status_id;
+
+        // Only operators can assign tickets
+        $isOperator = $user && $user->hasInboxRole($ticket->inbox_id, 'operator');
+        if (!$isOperator && isset($data['assigned_to']) && $data['assigned_to'] != $ticket->assigned_to) {
+            abort(403, 'Apenas operadores podem atribuir responsáveis ao ticket');
+        }
 
         $ticket->update([
             'inbox_id' => $data['inbox_id'],
