@@ -39,33 +39,15 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $input['password'],
         ]);
 
-        // Assign default client role in the default inbox
+        // Assign client role in the first inbox (if one exists); do not create a default inbox
         $inbox = Inbox::first();
-
-        // Create a default inbox if none exists (ensuring slug uniqueness)
-        if (!$inbox) {
-            $baseSlug = Str::slug('General Support');
-            $slug = $baseSlug;
-            $suffix = 1;
-
-            while (Inbox::where('slug', $slug)->exists()) {
-                $suffix++;
-                $slug = $baseSlug . '-' . $suffix;
-            }
-
-            $inbox = Inbox::create([
-                'name' => 'General Support',
-                'slug' => $slug,
-                'description' => 'Default support inbox',
+        if ($inbox) {
+            InboxUserRole::create([
+                'inbox_id' => $inbox->id,
+                'user_id' => $user->id,
+                'role' => 'client',
             ]);
         }
-
-        // Assign client role to the user
-        InboxUserRole::create([
-            'inbox_id' => $inbox->id,
-            'user_id' => $user->id,
-            'role' => 'client',
-        ]);
 
         return $user;
     }

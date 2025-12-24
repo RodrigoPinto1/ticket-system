@@ -456,6 +456,14 @@ class TicketController extends Controller
             'attachments.*' => ['file', 'max:20480'], // Max 20MB per file
         ]);
 
+        \Log::info('TicketController: Reply received', [
+            'ticket_id' => $ticket->id,
+            'user_id' => Auth::id(),
+            'has_cc' => !empty($data['cc']),
+            'cc' => $data['cc'] ?? [],
+            'cc_count' => !empty($data['cc']) ? count($data['cc']) : 0,
+        ]);
+
         // Create the message
         $message = TicketMessage::create([
             'ticket_id' => $ticket->id,

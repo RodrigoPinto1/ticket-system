@@ -21,6 +21,14 @@ class SendTicketReplyEmail implements ShouldQueue
     public int $backoff = 120; // 2 minutes between retries
 
     /**
+     * Get the middleware the job should pass through.
+     */
+    public function middleware(): array
+    {
+        return [new \Illuminate\Queue\Middleware\ThrottlesExceptions(1, 5)];
+    }
+
+    /**
      * Create a new job instance.
      */
     public function __construct(
@@ -36,6 +44,9 @@ class SendTicketReplyEmail implements ShouldQueue
      */
     public function handle(): void
     {
+        // Rate limit: wait 1 second before each email to avoid Mailtrap throttling
+        sleep(1);
+
         Log::info('SendTicketReplyEmail: Sending email', [
             'ticket_id' => $this->ticket->id,
             'message_id' => $this->message->id,

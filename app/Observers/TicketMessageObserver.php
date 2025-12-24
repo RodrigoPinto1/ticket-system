@@ -72,11 +72,26 @@ class TicketMessageObserver
 
         // 3. Notify CC contacts from the message itself
         if (!empty($message->cc) && is_array($message->cc)) {
+            \Log::info('TicketMessageObserver: Processing message CC', [
+                'message_id' => $message->id,
+                'cc_emails' => $message->cc,
+                'current_recipients' => $recipients,
+            ]);
             foreach ($message->cc as $email) {
                 if (!in_array($email, $recipients)) {
                     $recipients[] = $email;
+                    \Log::info('TicketMessageObserver: Added CC recipient', [
+                        'email' => $email,
+                    ]);
                 }
             }
+        } else {
+            \Log::info('TicketMessageObserver: No CC emails in message', [
+                'message_id' => $message->id,
+                'message_cc' => $message->cc,
+                'is_array' => is_array($message->cc),
+                'is_empty' => empty($message->cc),
+            ]);
         }
 
         // 4. Notify the assignee (if assigned and different from message sender)
@@ -100,10 +115,28 @@ class TicketMessageObserver
             }
         }
 
+        \Log::info('TicketMessageObserver: Final recipients list', [
+            'message_id' => $message->id,
+            'ticket_id' => $ticket->id,
+            'message_cc' => $message->cc,
+            'ticket_known_emails' => $ticket->known_emails,
+            'total_recipients' => count($recipients),
+            'recipients' => $recipients,
+            'total_operator_recipients' => count($operatorRecipients),
+            'operator_recipients' => $operatorRecipients,
+        ]);
+
         // Send emails to all recipients with proper delays
         $allRecipients = array_merge($recipients, $operatorRecipients);
         foreach ($allRecipients as $index => $email) {
             $delaySeconds = ($index + 1) * $baseDelaySeconds;
+            \Log::info('TicketMessageObserver: Dispatching email', [
+                'ticket_id' => $ticket->id,
+                'message_id' => $message->id,
+                'recipient' => $email,
+                'delay_seconds' => $delaySeconds,
+                'index' => $index,
+            ]);
             dispatch(new \App\Jobs\SendTicketReplyEmail($message, $ticket, $email))
                 ->delay(now()->addSeconds($delaySeconds));
         }

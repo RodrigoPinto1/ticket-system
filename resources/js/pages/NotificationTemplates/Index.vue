@@ -36,12 +36,6 @@ const repliedTemplates = computed(() =>
     props.templates.filter((t) => t.slug === 'ticket_replied'),
 );
 
-const otherTemplates = computed(() =>
-    props.templates.filter(
-        (t) => t.slug !== 'ticket_created' && t.slug !== 'ticket_replied',
-    ),
-);
-
 const showPreview = ref(false);
 const previewHtml = ref('');
 const previewSubject = ref('');
@@ -355,119 +349,6 @@ const useTemplate = async (template: NotificationTemplate) => {
             </div>
         </div>
 
-        <!-- Other Templates -->
-        <div v-if="otherTemplates.length > 0" class="space-y-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-lg font-semibold">📧 Outros Templates</h2>
-            </div>
-            <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card
-                    v-for="template in otherTemplates"
-                    :key="template.id"
-                    class="group overflow-hidden border border-border/60 bg-card/80 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-xl"
-                >
-                    <CardHeader class="bg-transparent pb-4">
-                        <CardTitle class="flex items-center gap-3 text-base">
-                            <div
-                                class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 text-lg shadow-inner"
-                            >
-                                {{ getTemplateIcon(template.slug) }}
-                            </div>
-                            <div class="min-w-0 flex-1 space-y-0.5">
-                                <div
-                                    class="text-[11px] tracking-[0.18em] uppercase opacity-80"
-                                >
-                                    {{ template.slug }}
-                                </div>
-                                <div
-                                    class="line-clamp-2 text-sm leading-tight font-semibold"
-                                >
-                                    {{ template.subject }}
-                                </div>
-                            </div>
-                        </CardTitle>
-                    </CardHeader>
-
-                    <CardContent class="space-y-3 pt-4">
-                        <div class="space-y-2">
-                            <div
-                                class="flex items-center justify-between text-xs text-muted-foreground"
-                            >
-                                <span class="flex items-center gap-2">
-                                    <Badge
-                                        v-if="template.enabled"
-                                        variant="default"
-                                        class="px-2 py-0.5 text-[11px]"
-                                    >
-                                        Ativo
-                                    </Badge>
-                                    <Badge
-                                        v-else
-                                        variant="secondary"
-                                        class="px-2 py-0.5 text-[11px]"
-                                    >
-                                        Desativado
-                                    </Badge>
-                                    <span
-                                        class="rounded-full bg-muted/60 px-2 py-0.5 text-[11px] text-muted-foreground"
-                                    >
-                                        {{ template.locale || 'pt-PT' }}
-                                    </span>
-                                </span>
-                                <span
-                                    >Atualizado
-                                    {{
-                                        new Date(
-                                            template.updated_at,
-                                        ).toLocaleDateString('pt-PT')
-                                    }}</span
-                                >
-                            </div>
-
-                            <div
-                                class="line-clamp-3 rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
-                            >
-                                {{
-                                    template.body_html?.replace(
-                                        /<[^>]+>/g,
-                                        '',
-                                    ) || '—'
-                                }}
-                            </div>
-                        </div>
-
-                        <div class="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                class="flex-1"
-                                @click="useTemplate(template)"
-                            >
-                                <Copy class="mr-1 h-3.5 w-3.5" />
-                                Usar
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                class="flex-1"
-                                @click="loadPreview(template.id)"
-                            >
-                                <Eye class="mr-1 h-3.5 w-3.5" />
-                                Preview
-                            </Button>
-                            <Button size="sm" as-child class="flex-1">
-                                <Link
-                                    :href="`/notification-templates/${template.id}/edit`"
-                                >
-                                    <Edit class="mr-1 h-3.5 w-3.5" />
-                                    Editar
-                                </Link>
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
 
         <Card v-if="!templates || templates.length === 0">
             <CardContent class="py-12 text-center text-muted-foreground">
