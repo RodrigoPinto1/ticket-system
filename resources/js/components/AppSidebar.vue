@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import NavFooter from '@/components/NavFooter.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -15,7 +14,15 @@ import {
 import { dashboard } from '@/routes';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid, Mail, Ticket } from 'lucide-vue-next';
+import {
+    BookOpen,
+    Folder,
+    LayoutGrid,
+    Mail,
+    Shield,
+    Ticket,
+} from 'lucide-vue-next';
+import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
 const baseMainNavItems: NavItem[] = [
@@ -34,17 +41,31 @@ const baseMainNavItems: NavItem[] = [
         href: '/notification-templates',
         icon: Mail,
     },
+    {
+        title: 'Gestão de Cargos',
+        href: '/inboxes/roles',
+        icon: Shield,
+    },
 ];
 
 const page = usePage();
 const mainNavItems = computed<NavItem[]>(() => {
-    const flags = (page.props as any).authFlags || { isOperator: false, isOwner: false, isClient: false };
+    const flags = (page.props as any).authFlags || {
+        isOperator: false,
+        isOwner: false,
+        isClient: false,
+    };
     const items = [...baseMainNavItems];
     // Show templates only for operators or owners; hide for clients/others
-    const canSeeTemplates = !!flags.isOperator || !!flags.isOwner;
-    return canSeeTemplates
+    const isPrivileged = !!flags.isOperator || !!flags.isOwner;
+    return isPrivileged
         ? items
-        : items.filter((i) => i.href !== '/notification-templates');
+        : items.filter(
+              (i) =>
+                  !['/notification-templates', '/inboxes/roles'].includes(
+                      i.href,
+                  ),
+          );
 });
 
 const footerNavItems: NavItem[] = [

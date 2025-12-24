@@ -34,12 +34,17 @@ class TicketController extends Controller
         $query = Ticket::query()
             ->with(['inbox', 'requester', 'assignee', 'entity', 'type', 'status', 'contact']);
 
-        // Restrict clients (non-operator/owner) to only their own tickets
+        // Restrict by user role
         $user = Auth::user();
         if ($user) {
             $isOperatorOrOwner = $user->inboxRoles()->whereIn('role', ['owner', 'operator'])->exists();
             if (!$isOperatorOrOwner) {
+                // Clients can only see tickets where they are the requester
                 $query->where('requester_id', $user->id);
+                // And only tickets from their entity
+                if ($user->entity_id) {
+                    $query->where('entity_id', $user->entity_id);
+                }
             }
         }
 
@@ -140,8 +145,8 @@ class TicketController extends Controller
 
         // Operator assignments per inbox (to filter assignees by selected inbox on the client)
         $operatorAssignments = InboxUserRole::with(['user' => function ($q) {
-                $q->select('id', 'name', 'email');
-            }])
+            $q->select('id', 'name', 'email');
+        }])
             ->where('role', 'operator')
             ->get()
             ->map(function (InboxUserRole $r) {
@@ -161,8 +166,8 @@ class TicketController extends Controller
             ->whereIn('role', ['operator', 'owner'])
             ->exists();
 
-            // Determine default status id for 'pending'
-            $defaultStatusId = TicketStatus::where('slug', 'pending')->value('id');
+        // Determine default status id for 'pending'
+        $defaultStatusId = TicketStatus::where('slug', 'pending')->value('id');
 
         return Inertia::render('Tickets/Create', [
             'inboxes' => $inboxes,
@@ -228,7 +233,7 @@ class TicketController extends Controller
         $operators = User::select('id', 'name', 'email')
             ->whereHas('inboxRoles', function ($q) use ($ticket) {
                 $q->where('role', 'operator')
-                  ->where('inbox_id', $ticket->inbox_id);
+                    ->where('inbox_id', $ticket->inbox_id);
             })
             ->get();
 
@@ -252,6 +257,8 @@ class TicketController extends Controller
      */
     public function store(Request $request)
     {
+        $user = Auth::user();
+
         // Validate incoming request
         $data = $request->validate([
             'inbox_id' => ['required', 'integer', 'exists:inboxes,id'],
@@ -263,15 +270,30 @@ class TicketController extends Controller
                 'integer',
                 'exists:users,id',
                 Rule::exists('inbox_user_roles', 'user_id')
-                    ->where(fn ($q) => $q->where('inbox_id', $request->inbox_id)->where('role', 'operator')),
+                    ->where(fn($q) => $q->where('inbox_id', $request->inbox_id)->where('role', 'operator')),
             ],
             'entity_id' => ['nullable', 'integer', 'exists:entities,id'],
             'type_id' => ['nullable', 'integer', 'exists:ticket_types,id'],
             'status_id' => ['nullable', 'integer', 'exists:ticket_statuses,id'],
-            // known_emails accepts an array of email strings
+            // known_emails accepts an array of email strings (CC)
             'known_emails' => ['nullable', 'array'],
             'known_emails.*' => ['email'],
         ]);
+
+        // Check if user is operator or owner
+        $isOperatorOrOwner = $user->inboxRoles()->whereIn('role', ['owner', 'operator'])->exists();
+
+        // If user is a client, enforce entity restriction
+        if (!$isOperatorOrOwner) {
+            // Clients must create tickets for their own entity
+            if ($user->entity_id && $data['entity_id'] && $data['entity_id'] !== $user->entity_id) {
+                abort(403, 'Clientes só podem criar tickets para a sua entidade');
+            }
+            // If no entity specified, use user's entity
+            if (!$data['entity_id'] && $user->entity_id) {
+                $data['entity_id'] = $user->entity_id;
+            }
+        }
 
         // Ensure requester is the authenticated user (simple flow)
         $requesterId = Auth::id();
@@ -302,34 +324,69 @@ class TicketController extends Controller
             ]);
         }
 
-        // Notify recipients by enqueuing Mailables with small delays to avoid provider rate limits.
+        // Notify recipients with delayed sends to avoid provider rate limits.
         // Base delay is configured via MAIL_SEND_DELAY_MS (milliseconds) in .env.
         $baseDelayMs = (int) env('MAIL_SEND_DELAY_MS', 1000);
         $baseDelaySeconds = (int) max(1, ceil($baseDelayMs / 1000));
-        $delayCounter = 0; // seconds to add for each recipient
 
-        // Notify the requester (if email exists) - queued
+        // Collect all recipients
+        $emailsToNotify = [];
+
+        // 1. Notify the requester
         $requester = User::find($requesterId);
         if ($requester && !empty($requester->email)) {
-            $delayCounter += $baseDelaySeconds;
-            Mail::to($requester->email)->queue((new TicketCreated($ticket))->delay(now()->addSeconds($delayCounter)));
+            $emailsToNotify[] = $requester->email;
         }
 
-        // Notify known_emails (queue individually, incrementing the delay)
+        // 2. Notify inbox owners and operators
+        $inboxOperators = User::whereHas('inboxRoles', function ($q) use ($ticket) {
+            $q->where('inbox_id', $ticket->inbox_id)
+                ->whereIn('role', ['owner', 'operator']);
+        })->get();
+
+        \Log::info('TicketController: Found operators for ticket', [
+            'ticket_id' => $ticket->id,
+            'inbox_id' => $ticket->inbox_id,
+            'operator_count' => $inboxOperators->count(),
+            'operator_emails' => $inboxOperators->pluck('email')->toArray(),
+        ]);
+
+        foreach ($inboxOperators as $operator) {
+            if (!empty($operator->email) && $operator->id !== $requesterId && !in_array($operator->email, $emailsToNotify)) {
+                $emailsToNotify[] = $operator->email;
+            }
+        }
+
+        // 3. Notify known_emails/CC
         if (!empty($ticket->known_emails) && is_array($ticket->known_emails)) {
             foreach ($ticket->known_emails as $email) {
-                $delayCounter += $baseDelaySeconds;
-                Mail::to($email)->queue((new TicketCreated($ticket))->delay(now()->addSeconds($delayCounter)));
+                if (!in_array($email, $emailsToNotify)) {
+                    $emailsToNotify[] = $email;
+                }
             }
         }
 
-        // Notify assignee (if assigned)
+        // 4. Notify assignee
         if (!empty($ticket->assigned_to)) {
             $assignee = User::find($ticket->assigned_to);
-            if ($assignee && !empty($assignee->email)) {
-                $delayCounter += $baseDelaySeconds;
-                Mail::to($assignee->email)->queue((new TicketCreated($ticket))->delay(now()->addSeconds($delayCounter)));
+            if ($assignee && !empty($assignee->email) && !in_array($assignee->email, $emailsToNotify)) {
+                $emailsToNotify[] = $assignee->email;
             }
+        }
+
+        // Send emails with delays
+        foreach ($emailsToNotify as $index => $email) {
+            // Use much longer delays for Mailtrap sandbox (60s base = MAIL_SEND_DELAY_MS / 1000)
+            $delaySeconds = ($index + 1) * $baseDelaySeconds;
+            \Log::info('TicketController: Sending email', [
+                'ticket_id' => $ticket->id,
+                'recipient_email' => $email,
+                'delay_seconds' => $delaySeconds,
+            ]);
+
+            // Dispatch job with proper delay
+            dispatch(new \App\Jobs\SendTicketNotificationEmail($ticket, $email))
+                ->delay(now()->addSeconds($delaySeconds));
         }
 
         // Redirect to the newly created ticket
@@ -354,7 +411,7 @@ class TicketController extends Controller
                 'integer',
                 'exists:users,id',
                 Rule::exists('inbox_user_roles', 'user_id')
-                    ->where(fn ($q) => $q->where('inbox_id', $request->inbox_id)->where('role', 'operator')),
+                    ->where(fn($q) => $q->where('inbox_id', $request->inbox_id)->where('role', 'operator')),
             ],
             'entity_id' => ['nullable', 'integer', 'exists:entities,id'],
             'type_id' => ['nullable', 'integer', 'exists:ticket_types,id'],

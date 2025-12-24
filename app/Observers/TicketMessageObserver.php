@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Mail\TicketReplied;
+use App\Mail\TicketRepliedForOperator;
 use App\Models\TicketMessage;
 use App\Models\TicketActivity;
 use Illuminate\Support\Facades\Mail;
@@ -53,6 +54,7 @@ class TicketMessageObserver
         $delayCounter = 0;
 
         $recipients = [];
+        $operatorRecipients = [];
 
         // 1. Notify the ticket creator (requester)
         if ($ticket->requester && !empty($ticket->requester->email)) {
@@ -86,13 +88,24 @@ class TicketMessageObserver
             }
         }
 
-        // Send queued emails to all recipients
-        foreach ($recipients as $email) {
-            $delayCounter += $baseDelaySeconds;
-            Mail::to($email)->queue(
-                (new TicketReplied($message, $ticket))->delay(now()->addSeconds($delayCounter))
-            );
+        // 5. Notify inbox owners and operators (with separate template)
+        $inboxOperators = \App\Models\User::whereHas('inboxRoles', function ($q) use ($ticket) {
+            $q->where('inbox_id', $ticket->inbox_id)
+                ->whereIn('role', ['owner', 'operator']);
+        })->get();
+
+        foreach ($inboxOperators as $operator) {
+            if (!empty($operator->email) && !in_array($operator->email, $recipients) && !in_array($operator->email, $operatorRecipients)) {
+                $operatorRecipients[] = $operator->email;
+            }
+        }
+
+        // Send emails to all recipients with proper delays
+        $allRecipients = array_merge($recipients, $operatorRecipients);
+        foreach ($allRecipients as $index => $email) {
+            $delaySeconds = ($index + 1) * $baseDelaySeconds;
+            dispatch(new \App\Jobs\SendTicketReplyEmail($message, $ticket, $email))
+                ->delay(now()->addSeconds($delaySeconds));
         }
     }
 }
-

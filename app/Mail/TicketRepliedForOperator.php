@@ -3,22 +3,25 @@
 namespace App\Mail;
 
 use App\Models\Ticket;
+use App\Models\TicketMessage;
 use App\Services\NotificationTemplateRenderer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class TicketCreated extends Mailable
+class TicketRepliedForOperator extends Mailable
 {
     use Queueable, SerializesModels;
 
+    public TicketMessage $message;
     public Ticket $ticket;
 
     /**
      * Create a new message instance.
      */
-    public function __construct(Ticket $ticket)
+    public function __construct(TicketMessage $message, Ticket $ticket)
     {
+        $this->message = $message;
         $this->ticket = $ticket;
     }
 
@@ -31,19 +34,21 @@ class TicketCreated extends Mailable
 
         $url = rtrim(config('app.url', env('APP_URL', 'https://ticket-system.test/')), '/') . '/tickets/' . ($this->ticket->id ?? '');
 
-        $template = $renderer->renderForInbox('ticket_created', $this->ticket->inbox_id ?? null, [
+        $template = $renderer->renderForInbox('ticket_replied_operator', $this->ticket->inbox_id ?? null, [
             'ticket' => [
                 'number' => $this->ticket->ticket_number ?? 'N/A',
                 'subject' => $this->ticket->subject ?? 'Ticket',
-                'content' => $this->ticket->content ?? '— Sem descrição —',
-                'created_at' => optional($this->ticket->created_at)->toDayDateTimeString() ?? '',
+                'content' => $this->ticket->content ?? '',
                 'url' => $url,
             ],
             'message' => [
-                'content' => 'Nenhuma mensagem neste momento.',
+                'content' => $this->message->content ?? '',
+                'author_name' => $this->message->user?->name ?? 'Desconhecido',
+                'author_email' => $this->message->user?->email ?? 'N/A',
+                'created_at' => optional($this->message->created_at)->toDayDateTimeString() ?? '',
             ],
             'app' => [
-                'name' => config('app.name', 'App'),
+                'name' => config('app.name', 'Ticket System'),
             ],
         ]);
 
@@ -52,8 +57,8 @@ class TicketCreated extends Mailable
                 ->html($template['html']);
         }
 
-        return $this->subject("[Ticket] " . ($this->ticket->ticket_number ?? 'New ticket'))
-            ->view('emails.ticket.created')
-            ->with(['ticket' => $this->ticket]);
+        return $this->subject("💬 Nova resposta no ticket {{ticket.number}}")
+            ->view('emails.ticket.replied_for_operator')
+            ->with(['message' => $this->message, 'ticket' => $this->ticket, 'url' => $url]);
     }
 }

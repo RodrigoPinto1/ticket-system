@@ -38,10 +38,11 @@ class TicketReplied extends Mailable
             'ticket' => [
                 'number' => $this->ticket->ticket_number ?? 'N/A',
                 'subject' => $this->ticket->subject ?? 'Ticket',
+                'content' => $this->ticket->content ?? '',
                 'url' => $url,
             ],
             'message' => [
-                'content' => nl2br(e($this->message->content ?? '')),
+                'content' => $this->message->content ?? '',
                 'created_at' => optional($this->message->created_at)->toDayDateTimeString() ?? '',
             ],
             'app' => [

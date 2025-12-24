@@ -8,7 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class TicketCreated extends Mailable
+class TicketCreatedForOperator extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -31,11 +31,15 @@ class TicketCreated extends Mailable
 
         $url = rtrim(config('app.url', env('APP_URL', 'https://ticket-system.test/')), '/') . '/tickets/' . ($this->ticket->id ?? '');
 
-        $template = $renderer->renderForInbox('ticket_created', $this->ticket->inbox_id ?? null, [
+        $template = $renderer->renderForInbox('ticket_created_operator', $this->ticket->inbox_id ?? null, [
             'ticket' => [
                 'number' => $this->ticket->ticket_number ?? 'N/A',
                 'subject' => $this->ticket->subject ?? 'Ticket',
                 'content' => $this->ticket->content ?? '— Sem descrição —',
+                'requester_name' => $this->ticket->requester?->name ?? 'Desconhecido',
+                'requester_email' => $this->ticket->requester?->email ?? 'N/A',
+                'entity_name' => $this->ticket->entity?->name ?? 'N/A',
+                'inbox_name' => $this->ticket->inbox?->name ?? 'N/A',
                 'created_at' => optional($this->ticket->created_at)->toDayDateTimeString() ?? '',
                 'url' => $url,
             ],
@@ -47,13 +51,24 @@ class TicketCreated extends Mailable
             ],
         ]);
 
+        \Log::info('TicketCreatedForOperator: Template render result', [
+            'ticket_id' => $this->ticket->id,
+            'inbox_id' => $this->ticket->inbox_id,
+            'template_found' => $template !== null,
+            'template_subject' => $template['subject'] ?? 'N/A',
+        ]);
+
         if ($template) {
             return $this->subject($template['subject'])
                 ->html($template['html']);
         }
 
-        return $this->subject("[Ticket] " . ($this->ticket->ticket_number ?? 'New ticket'))
-            ->view('emails.ticket.created')
-            ->with(['ticket' => $this->ticket]);
+        \Log::warning('TicketCreatedForOperator: Template not found, using fallback view', [
+            'ticket_id' => $this->ticket->id,
+        ]);
+
+        return $this->subject("🎫 Novo Ticket: " . ($this->ticket->subject ?? 'Ticket'))
+            ->view('emails.ticket.created_for_operator')
+            ->with(['ticket' => $this->ticket, 'url' => $url]);
     }
 }

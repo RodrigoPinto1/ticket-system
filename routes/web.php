@@ -19,7 +19,7 @@ Route::get('dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-require __DIR__.'/settings.php';
+require __DIR__ . '/settings.php';
 
 // Ticket management routes - Protected with auth middleware
 Route::middleware(['auth'])->group(function () {
@@ -50,14 +50,21 @@ Route::middleware(['auth'])->group(function () {
     // Create a new ticket type
     Route::post('ticket-types', [TicketTypeController::class, 'store'])->name('ticket-types.store');
 
+    // Manage inbox roles (operators/owners only)
+    Route::get('inboxes/roles', [InboxController::class, 'manageRoles'])->name('inboxes.roles');
+    Route::post('inboxes/{inbox}/roles', [InboxController::class, 'assignRole'])->name('inboxes.roles.assign');
+
     // Create a new inbox (operators/owners only)
     Route::post('inboxes', [InboxController::class, 'store'])->name('inboxes.store');
 
     // Notification templates management
     Route::get('notification-templates', [NotificationTemplateController::class, 'index'])->name('notification-templates.index');
+    Route::get('notification-templates/create', [NotificationTemplateController::class, 'create'])->name('notification-templates.create');
+    Route::post('notification-templates', [NotificationTemplateController::class, 'store'])->name('notification-templates.store');
     Route::get('notification-templates/{template}/edit', [NotificationTemplateController::class, 'edit'])->name('notification-templates.edit');
     Route::put('notification-templates/{template}', [NotificationTemplateController::class, 'update'])->name('notification-templates.update');
     Route::post('notification-templates/{template}/preview', [NotificationTemplateController::class, 'preview'])->name('notification-templates.preview');
+    Route::post('notification-templates/{template}/activate', [NotificationTemplateController::class, 'activate'])->name('notification-templates.activate');
 
     // Preview email templates (legacy route)
     Route::get('email-preview/{slug}', function (string $slug) {
