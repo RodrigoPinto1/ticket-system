@@ -37,7 +37,7 @@ class TicketPolicy
 
     public function update(User $user, Ticket $ticket): bool
     {
-        return $user->hasInboxRole($ticket->inbox_id, ['owner', 'operator']);
+        return true; // Permite que qualquer usuário autenticado edite e salve
     }
 
     public function assign(User $user, Ticket $ticket): bool
